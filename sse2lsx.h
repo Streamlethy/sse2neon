@@ -1,10 +1,20 @@
-#ifndef SSE2NEON_H
-#define SSE2NEON_H
-
-// This header file provides a simple API translation layer
-// between SSE intrinsics to their corresponding Arm/Aarch64 NEON versions
+#ifndef SSE2LSX_H
+#define SSE2LSX_H
+<<<<<<< HEAD
+// This project is derived from sse2neon, in order to 
+// make a vector transformation for loongarch
+// sse2lsx contributors to this work are:
 //
-// Contributors to this work are:
+
+=======
+>>>>>>> 8e95eda51e744b3eaadc2604028c8ec3194548b5
+
+// This project was adapted from sse2neon
+// https://github.com/DLTcollab/sse2neon
+// This header file provides a simple API translation layer
+// between SSE intrinsics to their corresponding loongarch LSX versions
+//
+//  sse2neon Contributors to this work are:
 //   John W. Ratcliff <jratcliffscarab@gmail.com>
 //   Brandon Rowlett <browlett@nvidia.com>
 //   Ken Fast <kfast@gdeb.com>
@@ -29,7 +39,7 @@
 //   Anthony Roberts <anthony.roberts@linaro.org>
 
 /*
- * sse2neon is freely redistributable under the MIT License.
+ * sse2lsx is freely redistributable under the MIT License.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +59,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#if defined(__loongarch64)
+// loongarch crc32
+#include <larchintrin.h>
+#endif
 
 /* Tunable configurations */
 
@@ -646,7 +661,7 @@ FORCE_INLINE uint16_t _sse2neon_vaddvq_u16(uint16x8_t a)
 }
 #endif
 
-/* Function Naming Conventions
+/* 函数命名约定
  * The naming convention of SSE intrinsics is straightforward. A generic SSE
  * intrinsic function is given as follows:
  *   _mm_<name>_<data_type>
@@ -705,21 +720,24 @@ typedef struct {
 
 // Takes the upper 64 bits of a and places it in the low end of the result
 // Takes the lower 64 bits of b and places it into the high end of the result.
+// 取 a 的高64位和 b 的低64位组成一个新的128位数值，并返回。
 FORCE_INLINE __m128 _mm_shuffle_ps_1032(__m128 a, __m128 b)
 {
-    float32x2_t a32 = vget_high_f32(vreinterpretq_f32_m128(a));
-    float32x2_t b10 = vget_low_f32(vreinterpretq_f32_m128(b));
-    return vreinterpretq_m128_f32(vcombine_f32(a32, b10));
+//    float32x2_t a32 = vget_high_f32(vreinterpretq_f32_m128(a));
+//    float32x2_t b10 = vget_low_f32(vreinterpretq_f32_m128(b));
+//    return vreinterpretq_m128_f32(vcombine_f32(a32, b10));
 }
 
 // takes the lower two 32-bit values from a and swaps them and places in high
 // end of result takes the higher two 32 bit values from b and swaps them and
 // places in low end of result.
+// 从 a 中提取较低的两个 32 位数值，然后将它们对调，并放入结果高64位
+// 从 b 中提取较高的两个 32 位数值，然后将它们对调，并放入结果低64位
 FORCE_INLINE __m128 _mm_shuffle_ps_2301(__m128 a, __m128 b)
 {
-    float32x2_t a01 = vrev64_f32(vget_low_f32(vreinterpretq_f32_m128(a)));
-    float32x2_t b23 = vrev64_f32(vget_high_f32(vreinterpretq_f32_m128(b)));
-    return vreinterpretq_m128_f32(vcombine_f32(a01, b23));
+//    float32x2_t a01 = vrev64_f32(vget_low_f32(vreinterpretq_f32_m128(a)));
+//    float32x2_t b23 = vrev64_f32(vget_high_f32(vreinterpretq_f32_m128(b)));
+//    return vreinterpretq_m128_f32(vcombine_f32(a01, b23));
 }
 
 FORCE_INLINE __m128 _mm_shuffle_ps_0321(__m128 a, __m128 b)
@@ -1146,6 +1164,10 @@ FORCE_INLINE void _mm_empty(void) {}
 
 // Add packed single-precision (32-bit) floating-point elements in a and b, and
 // store the results in dst.
+// FOR j := 0 to 3
+//	i := j*32
+//	dst[i+31:i] := a[i+31:i] + b[i+31:i]
+// ENDFOR
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_add_ps
 FORCE_INLINE __m128 _mm_add_ps(__m128 a, __m128 b)
 {
@@ -8402,15 +8424,10 @@ FORCE_INLINE __m128i _mm_cmpgt_epi64(__m128i a, __m128i b)
 // Starting with the initial value in crc, accumulates a CRC32 value for
 // unsigned 16-bit integer v, and stores the result in dst.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_crc32_u16
-FORCE_INLINE uint32_t _mm_crc32_u16(uint32_t crc, uint16_t v)
+FORCE_INLINE uint32_t _mm_crc32_u16(uint32_t crc, uint16_t v) // FINISH
 {
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-    __asm__ __volatile__("crc32ch %w[c], %w[c], %w[v]\n\t"
-                         : [c] "+r"(crc)
-                         : [v] "r"(v));
-#elif ((__ARM_ARCH == 8) && defined(__ARM_FEATURE_CRC32)) || \
-    (defined(_M_ARM64) && !defined(__clang__))
-    crc = __crc32ch(crc, v);
+#if defined(__loongarch64)
+    crc = __crcc_w_h_w(v,crc);
 #else
     crc = _mm_crc32_u8(crc, v & 0xff);
     crc = _mm_crc32_u8(crc, (v >> 8) & 0xff);
@@ -8421,15 +8438,10 @@ FORCE_INLINE uint32_t _mm_crc32_u16(uint32_t crc, uint16_t v)
 // Starting with the initial value in crc, accumulates a CRC32 value for
 // unsigned 32-bit integer v, and stores the result in dst.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_crc32_u32
-FORCE_INLINE uint32_t _mm_crc32_u32(uint32_t crc, uint32_t v)
+FORCE_INLINE uint32_t _mm_crc32_u32(uint32_t crc, uint32_t v) // FINISH
 {
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-    __asm__ __volatile__("crc32cw %w[c], %w[c], %w[v]\n\t"
-                         : [c] "+r"(crc)
-                         : [v] "r"(v));
-#elif ((__ARM_ARCH == 8) && defined(__ARM_FEATURE_CRC32)) || \
-    (defined(_M_ARM64) && !defined(__clang__))
-    crc = __crc32cw(crc, v);
+#if defined(__loongarch64)
+    crc = __crcc_w_w_w(v,crc);
 #else
     crc = _mm_crc32_u16(crc, v & 0xffff);
     crc = _mm_crc32_u16(crc, (v >> 16) & 0xffff);
@@ -8440,14 +8452,10 @@ FORCE_INLINE uint32_t _mm_crc32_u32(uint32_t crc, uint32_t v)
 // Starting with the initial value in crc, accumulates a CRC32 value for
 // unsigned 64-bit integer v, and stores the result in dst.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_crc32_u64
-FORCE_INLINE uint64_t _mm_crc32_u64(uint64_t crc, uint64_t v)
+FORCE_INLINE uint64_t _mm_crc32_u64(uint64_t crc, uint64_t v) // FINISH
 {
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-    __asm__ __volatile__("crc32cx %w[c], %w[c], %x[v]\n\t"
-                         : [c] "+r"(crc)
-                         : [v] "r"(v));
-#elif (defined(_M_ARM64) && !defined(__clang__))
-    crc = __crc32cd((uint32_t) crc, v);
+#if defined(__loongarch64)
+    crc = __crcc_w_d_w(v,crc);
 #else
     crc = _mm_crc32_u32((uint32_t) (crc), v & 0xffffffff);
     crc = _mm_crc32_u32((uint32_t) (crc), (v >> 32) & 0xffffffff);
@@ -8458,15 +8466,11 @@ FORCE_INLINE uint64_t _mm_crc32_u64(uint64_t crc, uint64_t v)
 // Starting with the initial value in crc, accumulates a CRC32 value for
 // unsigned 8-bit integer v, and stores the result in dst.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_crc32_u8
-FORCE_INLINE uint32_t _mm_crc32_u8(uint32_t crc, uint8_t v)
+// in loongarch, crc: IEEE 802.3(0xEDB88320);crcc Castagnoli(0x82F63B78)
+FORCE_INLINE uint32_t _mm_crc32_u8(uint32_t crc, uint8_t v) // FINISH
 {
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-    __asm__ __volatile__("crc32cb %w[c], %w[c], %w[v]\n\t"
-                         : [c] "+r"(crc)
-                         : [v] "r"(v));
-#elif ((__ARM_ARCH == 8) && defined(__ARM_FEATURE_CRC32)) || \
-    (defined(_M_ARM64) && !defined(__clang__))
-    crc = __crc32cb(crc, v);
+#if defined(__loongarch64)
+    crc = __crcc_w_b_w(v,crc);
 #else
     crc ^= v;
     for (int bit = 0; bit < 8; bit++) {
@@ -9213,4 +9217,4 @@ FORCE_INLINE uint64_t _rdtsc(void)
 #pragma GCC pop_options
 #endif
 
-#endif
+#endif  //endof SSE2LSX_H
